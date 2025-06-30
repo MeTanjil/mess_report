@@ -8,7 +8,7 @@ import Report from './components/Report';
 // Navigation Component (সবুজ ট্যাব)
 function Navigation() {
   const location = useLocation();
-  const getClass = (path) => 
+  const getClass = (path) =>
     `btn btn-outline-success${location.pathname === path ? ' active fw-bold' : ''}`;
 
   return (
@@ -50,7 +50,8 @@ function App() {
     <Router>
       <div className="container my-5">
         <div className="card shadow-lg rounded-4 p-4">
-          <h2 className="text-center mb-4 text-success fw-bold">messhishab updated</h2>
+          <h2 className="text-center mb-4 text-success fw-bold">Mess Hishab</h2>
+          <h4 className="text-center mb-4 text-success">Created by Tanjil</h4>
           
           {/* Navigation Bar */}
           <Navigation />
