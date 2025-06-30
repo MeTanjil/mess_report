@@ -68,6 +68,7 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
               <option key={i} value={m}>{m}</option>
             ))}
           </select>
+          
         </div>
         <div className="col">
           <input
@@ -105,7 +106,7 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
                 setDate('');
                 setEditIndex(null);
               }}
-            >বাতিল</button>
+            >বাতিল something</button>
           )}
         </div>
       </form>
