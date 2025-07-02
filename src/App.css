@@ -37,18 +37,3 @@
   }
 }
 
-.custom-toast-center {
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  width: auto !important;
-  max-width: 90vw;
-  z-index: 999999;
-  position: fixed !important;
-}
-.custom-toast-center-inner {
-  min-width: 300px;
-  text-align: center;
-  font-size: 1.1rem;
-}
-

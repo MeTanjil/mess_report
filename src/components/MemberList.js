@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+// SweetAlert2 import
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 export default function MemberList({ members, addMember, deleteMember, editMember }) {
   const [name, setName] = useState('');
@@ -33,6 +36,31 @@ export default function MemberList({ members, addMember, deleteMember, editMembe
     setEditName('');
   };
 
+  // 🟢 SweetAlert2 দিয়ে Delete Confirmation
+  const handleDelete = (index) => {
+    Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: ` "${members[index]}" মেম্বারটি ডিলিট করতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'হ্যাঁ, ডিলিট করুন!',
+      cancelButtonText: 'বাতিল'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deleteMember(index);
+        Swal.fire({
+          icon: 'success',
+          title: 'ডিলিট সম্পন্ন!',
+          text: 'মেম্বারটি ডিলিট করা হয়েছে।',
+          timer: 1400,
+          showConfirmButton: false,
+        });
+      }
+    });
+  };
+
   return (
     <section className="mb-4">
       <h4 className="fw-semibold mb-3">🧑‍🤝‍🧑 মেম্বার লিস্ট</h4>
@@ -56,7 +84,7 @@ export default function MemberList({ members, addMember, deleteMember, editMembe
                 <span>{m}</span>
                 <span>
                   <button className="btn btn-warning btn-sm me-1" onClick={() => handleEdit(i)}>এডিট</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => deleteMember(i)}>ডিলিট</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(i)}>ডিলিট</button>
                 </span>
               </>
             )}

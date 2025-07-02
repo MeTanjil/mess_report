@@ -71,6 +71,13 @@ export default function MealEntry({
   const handleSubmit = e => {
     e.preventDefault();
     if (!date) return;
+
+    // === Duplicate meal date check (only in Add mode) ===
+    if (!isEdit && meals.some(m => m.date === date)) {
+      toast.error("❌ এই তারিখের Meal আগেই এন্ট্রি করা হয়েছে!");
+      return;
+    }
+
     const mealData = {};
     members.forEach(m => {
       mealData[m] = {
@@ -79,6 +86,7 @@ export default function MealEntry({
         dinner: Number(memberMeals[m]?.dinner || 0),
       };
     });
+
     if (isEdit && saveEditMeal) {
       saveEditMeal(editIdx, { date, meals: mealData });
       setEditModalOpen && setEditModalOpen(false);

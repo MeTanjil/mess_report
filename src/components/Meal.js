@@ -1,4 +1,6 @@
 import React from 'react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 // বাংলা মাসের পূর্ণ নামের array
 const banglaMonths = [
@@ -6,22 +8,13 @@ const banglaMonths = [
   'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
 ];
 
-// ইংরেজি সংখ্যা থেকে বাংলা সংখ্যা রূপান্তরকারী ফাংশন
-function toBanglaNumber(input) {
-  const eng = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-  const bng = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return input.toString().split('').map(c =>
-    eng.includes(c) ? bng[eng.indexOf(c)] : c
-  ).join('');
-}
-
 // তারিখ সুন্দরভাবে দেখানোর জন্য কাস্টম helper
 const formatDate = dateStr => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  const day = toBanglaNumber(d.getDate());
+  const day = d.getDate();
   const month = banglaMonths[d.getMonth()];
-  const year = toBanglaNumber(d.getFullYear());
+  const year = d.getFullYear();
   return `${day} ${month}, ${year}`;
 };
 
@@ -37,6 +30,31 @@ export default function Meal({ members, meals, onEdit, onDelete }) {
 
   // তারিখ অনুসারে sort করুন (oldest first)
   const sortedMeals = [...filteredMeals].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Meal ডিলিট কনফার্মেশন Popup
+  const handleDelete = idx => {
+    Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `এই তারিখের Meal ডিলিট করতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'হ্যাঁ, ডিলিট করুন!',
+      cancelButtonText: 'বাতিল'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        onDelete && onDelete(idx);
+        Swal.fire({
+          icon: 'success',
+          title: 'ডিলিট সম্পন্ন!',
+          text: 'Meal ডিলিট করা হয়েছে।',
+          timer: 1300,
+          showConfirmButton: false,
+        });
+      }
+    });
+  };
 
   return (
     <section className="mb-4">
@@ -65,7 +83,7 @@ export default function Meal({ members, meals, onEdit, onDelete }) {
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => onDelete && onDelete(meals.findIndex(m => m.date === meal.date))}
+                        onClick={() => handleDelete(meals.findIndex(m => m.date === meal.date))}
                         title="Delete Meal"
                       >
                         🗑️

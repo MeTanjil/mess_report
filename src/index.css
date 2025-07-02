@@ -11,3 +11,28 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+
+/* এই সিলেক্টর টা Toastify-এর মূল ডিভকে ধরবে */
+.custom-toast-center {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  width: auto !important;
+  max-width: 90vw;
+  z-index: 999999;
+  pointer-events: none;
+}
+
+.custom-toast-center .Toastify__toast {
+  pointer-events: auto;
+}
+.custom-toast-center-inner {
+  min-width: 300px;
+  text-align: center;
+  font-size: 1.1rem;
+}
