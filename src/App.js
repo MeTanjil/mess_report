@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import MemberList from './components/MemberList';
-import Meal from './components/Meal';
-import MealEntry from './components/MealEntry';
-import ExpenseEntry from './components/ExpenseEntry';
-import Report from './components/Report';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import MemberList from "./components/MemberList";
+import Meal from "./components/Meal";
+import MealEntry from "./components/MealEntry";
+import ExpenseEntry from "./components/ExpenseEntry";
+import Report from "./components/Report";
 
-// এই দুইটা লাইনের মধ্যে শুধু FirebaseAuthProvider আর useFirebaseAuth ইমপোর্ট হবে
+// Firebase Auth/Firestore
 import { FirebaseAuthProvider, useFirebaseAuth } from './FirebaseAuthContext';
 import SignInSignUp from './components/SignInSignUp';
+import { db } from "./firebase";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
 // Navigation Component
 function Navigation() {
@@ -26,104 +28,114 @@ function Navigation() {
   );
 }
 
-// MainApp: Auth + main logic
+// MainApp: Auth + main logic + Firestore sync
 function MainApp() {
   const { user, signout } = useFirebaseAuth();
-
-  // লোকালস্টোরেজের key তৈরির ফাংশন (user + মাস)
-  const userKey = useCallback(
-    (key, month = null) => {
-      let suffix = user ? `-${user.email}` : ''; // Firebase user object-এ .email থাকে
-      if (month) suffix += `-${month}`;
-      return key + suffix;
-    },
-    [user]
-  );
 
   // মাস নির্বাচন (default: current month)
   const today = new Date();
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
 
-  // Mess Name (প্রতি মাসে আলাদা)
-  const [messName, setMessName] = useState('');
+  // States (Firestore থেকে load হবে)
+  const [members, setMembers] = useState(["Rahim", "Karim", "Selim"]);
+  const [meals, setMeals] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [messName, setMessName] = useState("");
   const [editMessName, setEditMessName] = useState(false);
 
-  // লোকালস্টোরেজ থেকে ডাটা আনার helper
-  const getLS = (key, fallback, monthScoped = false) => {
-    const k = monthScoped ? userKey(key, selectedMonth) : userKey(key);
-    const data = localStorage.getItem(k);
-    try {
-      return data ? JSON.parse(data) : fallback;
-    } catch {
-      return fallback;
-    }
+  // Firestore path utility: users/{email}/months/{selectedMonth}/{key}
+  const getDocRef = (key) => {
+    if (!user) return null;
+    return doc(db, "users", user.email, "months", selectedMonth + "-" + key);
+    // Example: users/tanjil@gmail.com/months/2024-07-members
   };
 
-  // State with Local Storage Sync
-  const [members, setMembers] = useState(() => getLS('members', ['Rahim', 'Karim', 'Selim']));
-  const [meals, setMeals] = useState(() => getLS('meals', [], true));
-  const [expenses, setExpenses] = useState(() => getLS('expenses', [], true));
-
-  // ইউজার/মাস চেঞ্জ হলেই ডাটা লোড (messName সহ)
+  // Firestore Data Load (realtime listen)
   useEffect(() => {
-    if (user) {
-      setMessName(getLS('messName', 'Mess Hishab', true)); // মাস ধরে Mess Name
-      setMembers(getLS('members', ['Rahim', 'Karim', 'Selim']));
-      setMeals(getLS('meals', [], true));
-      setExpenses(getLS('expenses', [], true));
-    }
-    // eslint-disable-next-line
+    if (!user) return;
+
+    // Members
+    const unsubMembers = onSnapshot(getDocRef("members"), (snap) => {
+      setMembers(snap.exists() ? snap.data().list : ["Rahim", "Karim", "Selim"]);
+    });
+
+    // Meals
+    const unsubMeals = onSnapshot(getDocRef("meals"), (snap) => {
+      setMeals(snap.exists() ? snap.data().list : []);
+    });
+
+    // Expenses
+    const unsubExpenses = onSnapshot(getDocRef("expenses"), (snap) => {
+      setExpenses(snap.exists() ? snap.data().list : []);
+    });
+
+    // Mess Name
+    const unsubMessName = onSnapshot(getDocRef("messName"), (snap) => {
+      setMessName(snap.exists() ? snap.data().value : "Mess Hishab");
+    });
+
+    // Clean up
+    return () => {
+      unsubMembers();
+      unsubMeals();
+      unsubExpenses();
+      unsubMessName();
+    };
   }, [user, selectedMonth]);
 
-  // লোকালস্টোরেজে সেভ (user/mess/month অনুযায়ী, বিশেষ করে messName-এ মাস দিবেন)
-  useEffect(() => { if (user) localStorage.setItem(userKey('messName', selectedMonth), JSON.stringify(messName)); }, [messName, user, selectedMonth]);
-  useEffect(() => { if (user) localStorage.setItem(userKey('members'), JSON.stringify(members)); }, [members, user]);
-  useEffect(() => { if (user) localStorage.setItem(userKey('meals', selectedMonth), JSON.stringify(meals)); }, [meals, user, selectedMonth]);
-  useEffect(() => { if (user) localStorage.setItem(userKey('expenses', selectedMonth), JSON.stringify(expenses)); }, [expenses, user, selectedMonth]);
+  // Firestore Save helpers
+  const saveDoc = async (key, val) => {
+    if (!user) return;
+    await setDoc(getDocRef(key), val, { merge: true });
+  };
 
-  // ==== Member Functions ====
-  const addMember = (name) => setMembers([...members, name]);
-  const deleteMember = (index) => setMembers(members.filter((_, i) => i !== index));
-  const editMember = (index, newName) => setMembers(members.map((m, i) => (i === index ? newName : m)));
+  // ==== CRUD functions ====
+  const addMember = (name) => saveDoc("members", { list: [...members, name] });
+  const deleteMember = (idx) => saveDoc("members", { list: members.filter((_, i) => i !== idx) });
+  const editMember = (idx, newName) =>
+    saveDoc("members", { list: members.map((m, i) => (i === idx ? newName : m)) });
 
-  // ==== Meal Functions ====
-  const addMeal = (meal) => setMeals([...meals, meal]);
-  const deleteMeal = (index) => setMeals(meals.filter((_, i) => i !== index));
-  const editMeal = (index, updatedMeal) => setMeals(meals.map((meal, i) => (i === index ? updatedMeal : meal)));
+  const addMeal = (meal) => saveDoc("meals", { list: [...meals, meal] });
+  const deleteMeal = (idx) => saveDoc("meals", { list: meals.filter((_, i) => i !== idx) });
+  const editMeal = (idx, updatedMeal) =>
+    saveDoc("meals", { list: meals.map((m, i) => (i === idx ? updatedMeal : m)) });
 
-  // ==== Expense Functions ====
-  const addExpense = (expense) => setExpenses([...expenses, expense]);
-  const deleteExpense = (index) => setExpenses(expenses.filter((_, i) => i !== index));
-  const editExpense = (index, updatedExpense) => setExpenses(expenses.map((ex, i) => (i === index ? updatedExpense : ex)));
+  const addExpense = (ex) => saveDoc("expenses", { list: [...expenses, ex] });
+  const deleteExpense = (idx) => saveDoc("expenses", { list: expenses.filter((_, i) => i !== idx) });
+  const editExpense = (idx, updatedEx) =>
+    saveDoc("expenses", { list: expenses.map((e, i) => (i === idx ? updatedEx : e)) });
 
-  // Export/Import (মাস ধরে backup/restore)
+  // Mess Name
+  const handleMessNameSave = () => {
+    saveDoc("messName", { value: messName });
+    setEditMessName(false);
+  };
+
+  // Export/Import (backup)
   const handleExport = () => {
     const data = { members, meals, expenses };
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = `mess-hishab-backup-${selectedMonth}.json`;
     link.click();
-
     URL.revokeObjectURL(url);
   };
 
   const handleImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
         if (data.members && data.meals && data.expenses) {
-          setMembers(data.members);
-          setMeals(data.meals);
-          setExpenses(data.expenses);
+          saveDoc("members", { list: data.members });
+          saveDoc("meals", { list: data.meals });
+          saveDoc("expenses", { list: data.expenses });
           alert("ডেটা সফলভাবে ইমপোর্ট হয়েছে!");
         } else {
           alert("ভুল ফাইল/ফরম্যাট!");
@@ -135,6 +147,10 @@ function MainApp() {
     reader.readAsText(file);
   };
 
+  // Auth check
+  if (!user) return <SignInSignUp />;
+
+  // UI
   const backupPanel = (
     <div className="d-flex justify-content-end mb-3">
       <button className="btn btn-success me-2" onClick={handleExport}>
@@ -152,17 +168,10 @@ function MainApp() {
     </div>
   );
 
-  // Mess Name Edit Handler
-  const handleMessNameSave = () => setEditMessName(false);
-
-  // Auth check: logged in user না থাকলে sign-in page দেখাও
-  if (!user) return <SignInSignUp />;
-
   return (
     <Router>
       <div className="container my-5">
         <div className="card shadow-lg rounded-4 p-4">
-
           {/* Header with Mess Name & Month Selector */}
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
             <div>
