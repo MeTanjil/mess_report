@@ -6,6 +6,7 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
   const [date, setDate] = useState('');
   const [editIndex, setEditIndex] = useState(null);
 
+  // সাবমিট করলে নতুন expense add বা edit
   const handleSubmit = e => {
     e.preventDefault();
     if (member && amount) {
@@ -26,6 +27,7 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
     }
   };
 
+  // এডিট বাটনে পুরনো ডেটা বসাও
   const handleEdit = (ex, index) => {
     setMember(ex.member);
     setAmount(ex.amount.toString());
@@ -33,10 +35,21 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
     setEditIndex(index);
   };
 
+  // বাতিল করলে ফর্ম রিসেট
+  const handleCancel = () => {
+    setMember('');
+    setAmount('');
+    setDate('');
+    setEditIndex(null);
+  };
+
   return (
     <section className="mb-4">
-      <h4 className="fw-semibold mb-3">💵 খরচের হিসাব</h4>
+      <h4 className="fw-semibold text-success mb-3 fs-4 border-bottom pb-2">💵 খরচের হিসাব</h4>
       <ul className="list-group mb-3">
+        {expenses.length === 0 && (
+          <li className="list-group-item text-center text-secondary">এখনও কোনো খরচ যোগ হয়নি</li>
+        )}
         {expenses.map((ex, i) => (
           <li className="list-group-item d-flex justify-content-between align-items-center" key={i}>
             <span>
@@ -68,7 +81,6 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
               <option key={i} value={m}>{m}</option>
             ))}
           </select>
-          
         </div>
         <div className="col">
           <input
@@ -100,13 +112,8 @@ export default function ExpenseEntry({ expenses, members, addExpense, editExpens
             <button
               type="button"
               className="btn btn-secondary ms-2"
-              onClick={() => {
-                setMember('');
-                setAmount('');
-                setDate('');
-                setEditIndex(null);
-              }}
-            >বাতিল something</button>
+              onClick={handleCancel}
+            >বাতিল</button>
           )}
         </div>
       </form>

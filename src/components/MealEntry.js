@@ -5,7 +5,7 @@ export default function MealEntry({ members, addMeal, editMeal, meals }) {
   const [memberMeals, setMemberMeals] = useState({});
   const [editIndex, setEditIndex] = useState(null);
 
-  // সদস্য আপডেট হলে meal state reset
+  // সদস্য লিস্ট চেঞ্জ হলে meal ফর্ম রিসেট
   useEffect(() => {
     const reset = {};
     members.forEach(m => {
@@ -14,7 +14,7 @@ export default function MealEntry({ members, addMeal, editMeal, meals }) {
     setMemberMeals(reset);
   }, [members]);
 
-  // Edit হলে আগের ভ্যালু বসাও (এইটা না রাখলেও চলবে)
+  // Edit হলে আগের ডেটা বসাও
   useEffect(() => {
     if (editIndex !== null && meals && meals[editIndex]) {
       setDate(meals[editIndex].date);
@@ -22,7 +22,9 @@ export default function MealEntry({ members, addMeal, editMeal, meals }) {
     }
   }, [editIndex, meals]);
 
+  // meal ভ্যালু চেঞ্জ হ্যান্ডল
   const handleChange = (member, mealType, value) => {
+    // শুধু 0, 0.5, 1, ... 5 পর্যন্ত এন্ট্রি করতে দিবে
     if (
       value === '' ||
       /^(0(\.5)?|1(\.5)?|2(\.5)?|3(\.5)?|4(\.5)?|5(\.5)?)$/.test(value)
@@ -34,9 +36,12 @@ export default function MealEntry({ members, addMeal, editMeal, meals }) {
     }
   };
 
+  // সাবমিট করলে ডেটা অ্যাড/এডিট
   const handleSubmit = e => {
     e.preventDefault();
     if (!date) return;
+
+    // ফর্ম ডেটা meal ফরম্যাটে রেডি
     const mealData = {};
     members.forEach(m => {
       mealData[m] = {
@@ -45,11 +50,14 @@ export default function MealEntry({ members, addMeal, editMeal, meals }) {
         dinner: memberMeals[m]?.dinner === '' ? 0 : Number(memberMeals[m].dinner),
       };
     });
+
     if (editIndex === null) {
       addMeal({ date, meals: mealData });
     } else {
       editMeal(editIndex, { date, meals: mealData });
     }
+
+    // ফর্ম রিসেট
     setDate('');
     const reset = {};
     members.forEach(m => {

@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// ...rest of imports
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import MemberList from './components/MemberList';
-import Meal from './components/Meal'; // শুধু meal হিসাব দেখার জন্য
-import MealEntry from './components/MealEntry'; // সদস্য meal entry (vertical/card style)
+import Meal from './components/Meal';
+import MealEntry from './components/MealEntry';
 import ExpenseEntry from './components/ExpenseEntry';
 import Report from './components/Report';
 
-import { AuthProvider, useAuth } from './AuthContext';
+// এই দুইটা লাইনের মধ্যে শুধু FirebaseAuthProvider আর useFirebaseAuth ইমপোর্ট হবে
+import { FirebaseAuthProvider, useFirebaseAuth } from './FirebaseAuthContext';
 import SignInSignUp from './components/SignInSignUp';
 
-// Navigation Component (সবুজ ট্যাব)
+// Navigation Component
 function Navigation() {
   const location = useLocation();
   const getClass = (path) =>
     `btn btn-outline-success${location.pathname === path ? ' active fw-bold' : ''}`;
-
   return (
     <nav className="mb-4 d-flex gap-3 justify-content-center">
       <Link className={getClass("/members")} to="/members">মেম্বার</Link>
@@ -29,41 +28,59 @@ function Navigation() {
 
 // MainApp: Auth + main logic
 function MainApp() {
-  const { user, signout } = useAuth();
+  const { user, signout } = useFirebaseAuth();
 
-  // 👉 ইউজার ভেদে লোকালস্টোরেজ-কি গুলো আলাদা করতে userKey ফাংশন
+  // লোকালস্টোরেজের key তৈরির ফাংশন (user + মাস)
   const userKey = useCallback(
-  (key) => user ? `${key}-${user.username}` : key,
-  [user]
-);
-  // ইউজার অনুযায়ী ডাটা লোডার ফাংশন
-  const getLS = (key, fallback) => {
-  const data = localStorage.getItem(userKey(key));
-  try {
-    return data ? JSON.parse(data) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-  // State with Local Storage Sync (user change হলে রিলোড হবে)
-  const [members, setMembers] = useState(() => getLS('members', ['Rahim', 'Karim', 'Selim']));
-  const [meals, setMeals] = useState(() => getLS('meals', []));
-  const [expenses, setExpenses] = useState(() => getLS('expenses', []));
+    (key, month = null) => {
+      let suffix = user ? `-${user.email}` : ''; // Firebase user object-এ .email থাকে
+      if (month) suffix += `-${month}`;
+      return key + suffix;
+    },
+    [user]
+  );
 
-  // ইউজার চেঞ্জ হলেই তার ডাটা লোড
+  // মাস নির্বাচন (default: current month)
+  const today = new Date();
+  const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+
+  // Mess Name (প্রতি মাসে আলাদা)
+  const [messName, setMessName] = useState('');
+  const [editMessName, setEditMessName] = useState(false);
+
+  // লোকালস্টোরেজ থেকে ডাটা আনার helper
+  const getLS = (key, fallback, monthScoped = false) => {
+    const k = monthScoped ? userKey(key, selectedMonth) : userKey(key);
+    const data = localStorage.getItem(k);
+    try {
+      return data ? JSON.parse(data) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  // State with Local Storage Sync
+  const [members, setMembers] = useState(() => getLS('members', ['Rahim', 'Karim', 'Selim']));
+  const [meals, setMeals] = useState(() => getLS('meals', [], true));
+  const [expenses, setExpenses] = useState(() => getLS('expenses', [], true));
+
+  // ইউজার/মাস চেঞ্জ হলেই ডাটা লোড (messName সহ)
   useEffect(() => {
     if (user) {
+      setMessName(getLS('messName', 'Mess Hishab', true)); // মাস ধরে Mess Name
       setMembers(getLS('members', ['Rahim', 'Karim', 'Selim']));
-      setMeals(getLS('meals', []));
-      setExpenses(getLS('expenses', []));
+      setMeals(getLS('meals', [], true));
+      setExpenses(getLS('expenses', [], true));
     }
     // eslint-disable-next-line
-  }, [user]);
+  }, [user, selectedMonth]);
 
-  // লোকালস্টোরেজে রিয়েল টাইম সেভ
+  // লোকালস্টোরেজে সেভ (user/mess/month অনুযায়ী, বিশেষ করে messName-এ মাস দিবেন)
+  useEffect(() => { if (user) localStorage.setItem(userKey('messName', selectedMonth), JSON.stringify(messName)); }, [messName, user, selectedMonth]);
   useEffect(() => { if (user) localStorage.setItem(userKey('members'), JSON.stringify(members)); }, [members, user]);
-  useEffect(() => { if (user) localStorage.setItem(userKey('meals'), JSON.stringify(meals)); }, [meals, user]);
-  useEffect(() => { if (user) localStorage.setItem(userKey('expenses'), JSON.stringify(expenses)); }, [expenses, user]);
+  useEffect(() => { if (user) localStorage.setItem(userKey('meals', selectedMonth), JSON.stringify(meals)); }, [meals, user, selectedMonth]);
+  useEffect(() => { if (user) localStorage.setItem(userKey('expenses', selectedMonth), JSON.stringify(expenses)); }, [expenses, user, selectedMonth]);
 
   // ==== Member Functions ====
   const addMember = (name) => setMembers([...members, name]);
@@ -80,7 +97,7 @@ function MainApp() {
   const deleteExpense = (index) => setExpenses(expenses.filter((_, i) => i !== index));
   const editExpense = (index, updatedExpense) => setExpenses(expenses.map((ex, i) => (i === index ? updatedExpense : ex)));
 
-  // Export/Import
+  // Export/Import (মাস ধরে backup/restore)
   const handleExport = () => {
     const data = { members, meals, expenses };
     const json = JSON.stringify(data, null, 2);
@@ -89,7 +106,7 @@ function MainApp() {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = "mess-hishab-backup.json";
+    link.download = `mess-hishab-backup-${selectedMonth}.json`;
     link.click();
 
     URL.revokeObjectURL(url);
@@ -135,6 +152,9 @@ function MainApp() {
     </div>
   );
 
+  // Mess Name Edit Handler
+  const handleMessNameSave = () => setEditMessName(false);
+
   // Auth check: logged in user না থাকলে sign-in page দেখাও
   if (!user) return <SignInSignUp />;
 
@@ -142,15 +162,51 @@ function MainApp() {
     <Router>
       <div className="container my-5">
         <div className="card shadow-lg rounded-4 p-4">
+
+          {/* Header with Mess Name & Month Selector */}
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+            <div>
+              {!editMessName ? (
+                <h2 className="text-success fw-bold mb-1">
+                  {messName}
+                  <button onClick={() => setEditMessName(true)} className="btn btn-link btn-sm ms-2">✎</button>
+                </h2>
+              ) : (
+                <div className="d-flex align-items-center gap-2">
+                  <input
+                    className="form-control form-control-sm"
+                    style={{ maxWidth: 220 }}
+                    value={messName}
+                    onChange={e => setMessName(e.target.value)}
+                  />
+                  <button className="btn btn-success btn-sm" onClick={handleMessNameSave}>Save</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditMessName(false)}>Cancel</button>
+                </div>
+              )}
+              <div className="text-secondary small">
+                Created by Tanjil
+              </div>
+            </div>
+            <div>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="form-control form-control-sm"
+                style={{ minWidth: 160 }}
+              />
+            </div>
+          </div>
+
           {/* User Bar */}
           <div className="d-flex justify-content-end mb-2">
-            <span className="me-3 text-success">👤 {user.username}</span>
+            <span className="me-3 text-success">👤 {user.email}</span>
             <button className="btn btn-outline-danger btn-sm" onClick={signout}>Logout</button>
           </div>
-          <h2 className="text-center mb-4 text-success fw-bold">Mess Hishab</h2>
-          <h4 className="text-center mb-4 text-success">Created by Tanjil</h4>
+
           {/* Navigation Bar */}
           <Navigation />
+
           {/* Routes */}
           <Routes>
             <Route path="/" element={<Navigate to="/report" />} />
@@ -199,11 +255,11 @@ function MainApp() {
   );
 }
 
-// শুধুমাত্র এখানে AuthProvider দিয়ে wrap করুন
+// শুধু FirebaseAuthProvider দিয়ে wrap করুন
 export default function App() {
   return (
-    <AuthProvider>
+    <FirebaseAuthProvider>
       <MainApp />
-    </AuthProvider>
+    </FirebaseAuthProvider>
   );
 }

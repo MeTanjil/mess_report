@@ -1,12 +1,12 @@
 import React from 'react';
 
 export default function Report({ members, meals, expenses }) {
-  // Memberwise Meal Count
+  // সদস্য-ভিত্তিক মোট meal হিসাব
   const mealSummary = {};
   members.forEach(m => (mealSummary[m] = 0));
   meals.forEach(meal => {
     if (meal.meals) {
-      // New: memberwise structure
+      // memberwise হিসাব
       members.forEach(m => {
         if (meal.meals[m]) {
           mealSummary[m] +=
@@ -16,7 +16,7 @@ export default function Report({ members, meals, expenses }) {
         }
       });
     } else {
-      // Old fallback: everyone gets equal share
+      // পুরনো ডেটার fallback (সবাই সমান ভাগ)
       members.forEach(m => {
         mealSummary[m] += (
           (Number(meal.breakfast) + Number(meal.lunch) + Number(meal.dinner))
@@ -26,7 +26,7 @@ export default function Report({ members, meals, expenses }) {
     }
   });
 
-  // Memberwise Expense
+  // সদস্য-ভিত্তিক মোট খরচ
   const expenseSummary = {};
   members.forEach(m => (expenseSummary[m] = 0));
   expenses.forEach(ex => {
@@ -35,12 +35,12 @@ export default function Report({ members, meals, expenses }) {
     }
   });
 
-  // Totals & Meal Rate
+  // মোট meal, মোট খরচ, meal rate
   const totalMeals = Object.values(mealSummary).reduce((a, b) => a + b, 0);
   const totalExpense = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
   const mealRate = totalMeals ? (totalExpense / totalMeals).toFixed(2) : 0;
 
-  // Individual Dues
+  // সদস্য-ভিত্তিক রিপোর্ট
   const dues = members.map(m => ({
     name: m,
     meals: mealSummary[m].toFixed(2),

@@ -1,22 +1,23 @@
 import React, { useState } from "react";
-import { useAuth } from "../AuthContext";
+import { useFirebaseAuth } from "../FirebaseAuthContext";
 
 export default function SignInSignUp() {
-  const { signup, signin, forgot } = useAuth();
+  const { signup, signin, forgot } = useFirebaseAuth();
+
   const [isSignup, setIsSignup] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
 
-  // ফর্ম state
-  const [username, setUsername] = useState("");
+  // এখানে email যুক্ত করা হয়েছে
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [securityQuestion, setSecurityQuestion] = useState("");
   const [securityAnswer, setSecurityAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [msg, setMsg] = useState("");
 
-  // সব ইনপুট রিসেট করার হেল্পার
+  // সব ইনপুট রিসেটের ফাংশন
   const resetAll = () => {
-    setUsername("");
+    setEmail("");
     setPassword("");
     setSecurityQuestion("");
     setSecurityAnswer("");
@@ -24,45 +25,47 @@ export default function SignInSignUp() {
     setMsg("");
   };
 
-  // সাবমিট
-  const handleSubmit = (e) => {
+  // সাবমিট হ্যান্ডল
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isForgot) {
-      if (!username || !securityAnswer || !newPassword) {
+      if (!email || !securityAnswer || !newPassword) {
         setMsg("সব ঘর পূরণ করুন!");
         return;
       }
-      if (forgot({ username, securityAnswer, newPassword })) {
+      const res = await forgot({ email, securityAnswer, newPassword });
+      if (res?.success) {
         setMsg("পাসওয়ার্ড পরিবর্তন হয়েছে! এখন লগইন করুন।");
         setIsForgot(false);
         setPassword(""); setNewPassword(""); setSecurityAnswer("");
       } else {
-        setMsg("তথ্য মেলেনি!");
+        setMsg(res?.msg || "তথ্য মেলেনি!");
       }
       return;
     }
     if (isSignup) {
-      if (!username || !password || !securityQuestion || !securityAnswer) {
+      if (!email || !password || !securityQuestion || !securityAnswer) {
         setMsg("সব ঘর পূরণ করুন!");
         return;
       }
-      const res = signup({ username, password, securityQuestion, securityAnswer });
-      if (res.success) {
+      const res = await signup({ email, password, securityQuestion, securityAnswer });
+      if (res?.success) {
         setMsg("রেজিস্ট্রেশন সফল! এখন লগইন করুন।");
         setIsSignup(false);
         setPassword(""); setSecurityAnswer(""); setSecurityQuestion("");
       } else {
-        setMsg(res.msg);
+        setMsg(res?.msg || "Signup failed!");
       }
     } else {
-      if (!username || !password) {
+      if (!email || !password) {
         setMsg("সব ঘর পূরণ করুন!");
         return;
       }
-      if (signin({ username, password })) {
+      const ok = await signin({ email, password });
+      if (ok?.success) {
         setMsg("");
       } else {
-        setMsg("ভুল তথ্য!");
+        setMsg(ok?.msg || "ভুল তথ্য!");
       }
     }
   };
@@ -75,9 +78,10 @@ export default function SignInSignUp() {
         </h4>
         <input
           className="form-control mb-2"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
+          placeholder="Email"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
         />
         {isForgot ? (
           <>
