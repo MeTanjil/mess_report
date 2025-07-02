@@ -1,27 +1,24 @@
 import React from 'react';
 
 export default function Report({ members, meals, expenses }) {
-  // সদস্য-ভিত্তিক মোট meal হিসাব
+  // সদস্য-ভিত্তিক মোট meal হিসাব (safe fallback)
   const mealSummary = {};
   members.forEach(m => (mealSummary[m] = 0));
   meals.forEach(meal => {
     if (meal.meals) {
       // memberwise হিসাব
       members.forEach(m => {
-        if (meal.meals[m]) {
-          mealSummary[m] +=
-            Number(meal.meals[m].breakfast || 0) +
-            Number(meal.meals[m].lunch || 0) +
-            Number(meal.meals[m].dinner || 0);
-        }
+        const mm = meal.meals[m] || { breakfast: 0, lunch: 0, dinner: 0 };
+        mealSummary[m] +=
+          Number(mm.breakfast || 0) +
+          Number(mm.lunch || 0) +
+          Number(mm.dinner || 0);
       });
     } else {
       // পুরনো ডেটার fallback (সবাই সমান ভাগ)
+      const sum = Number(meal.breakfast || 0) + Number(meal.lunch || 0) + Number(meal.dinner || 0);
       members.forEach(m => {
-        mealSummary[m] += (
-          (Number(meal.breakfast) + Number(meal.lunch) + Number(meal.dinner))
-          / members.length
-        );
+        mealSummary[m] += members.length ? sum / members.length : 0;
       });
     }
   });
@@ -30,24 +27,30 @@ export default function Report({ members, meals, expenses }) {
   const expenseSummary = {};
   members.forEach(m => (expenseSummary[m] = 0));
   expenses.forEach(ex => {
-    if (expenseSummary[ex.member] !== undefined) {
-      expenseSummary[ex.member] += Number(ex.amount);
+    if (expenseSummary.hasOwnProperty(ex.member)) {
+      expenseSummary[ex.member] += Number(ex.amount || 0);
     }
   });
 
   // মোট meal, মোট খরচ, meal rate
-  const totalMeals = Object.values(mealSummary).reduce((a, b) => a + b, 0);
-  const totalExpense = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
-  const mealRate = totalMeals ? (totalExpense / totalMeals).toFixed(2) : 0;
+  const totalMeals = Object.values(mealSummary).reduce((a, b) => Number(a) + Number(b), 0);
+  const totalExpense = Object.values(expenseSummary).reduce((a, b) => Number(a) + Number(b), 0);
+  const mealRate = totalMeals > 0 ? (totalExpense / totalMeals) : 0;
 
   // সদস্য-ভিত্তিক রিপোর্ট
-  const dues = members.map(m => ({
-    name: m,
-    meals: mealSummary[m].toFixed(2),
-    paid: expenseSummary[m].toFixed(2),
-    cost: (mealSummary[m] * mealRate).toFixed(2),
-    balance: (expenseSummary[m] - mealSummary[m] * mealRate).toFixed(2),
-  }));
+  const dues = members.map(m => {
+    const mealsCount = Number(mealSummary[m] || 0);
+    const paid = Number(expenseSummary[m] || 0);
+    const cost = mealsCount * mealRate;
+    const balance = paid - cost;
+    return {
+      name: m,
+      meals: mealsCount.toFixed(2),
+      paid: paid.toFixed(2),
+      cost: cost.toFixed(2),
+      balance: balance.toFixed(2),
+    };
+  });
 
   return (
     <section className="mb-4">
@@ -80,7 +83,7 @@ export default function Report({ members, meals, expenses }) {
             <td>মোট</td>
             <td>{totalMeals.toFixed(2)}</td>
             <td>{totalExpense.toFixed(2)}</td>
-            <td colSpan={2}>মিল রেট: <b>{mealRate}</b></td>
+            <td colSpan={2}>মিল রেট: <b>{mealRate ? mealRate.toFixed(2) : 0}</b></td>
           </tr>
         </tfoot>
       </table>

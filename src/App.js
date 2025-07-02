@@ -12,7 +12,6 @@ import SignInSignUp from './components/SignInSignUp';
 import { db } from "./firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
-// Navigation Component
 function Navigation() {
   const location = useLocation();
   const getClass = (path) =>
@@ -28,7 +27,7 @@ function Navigation() {
   );
 }
 
-// MainApp: Auth + main logic + Firestore sync
+// MainApp: Auth + main logic + Firestore sync + Edit Meal Modal
 function MainApp() {
   const { user, signout } = useFirebaseAuth();
 
@@ -44,11 +43,14 @@ function MainApp() {
   const [messName, setMessName] = useState("");
   const [editMessName, setEditMessName] = useState(false);
 
-  // Firestore path utility: users/{email}/months/{selectedMonth}/{key}
+  // Meal Edit Modal state
+  const [editMealIdx, setEditMealIdx] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Firestore path utility: users/{email}/months/{selectedMonth}-{key}
   const getDocRef = (key) => {
     if (!user) return null;
     return doc(db, "users", user.email, "months", selectedMonth + "-" + key);
-    // Example: users/tanjil@gmail.com/months/2024-07-members
   };
 
   // Firestore Data Load (realtime listen)
@@ -97,9 +99,28 @@ function MainApp() {
     saveDoc("members", { list: members.map((m, i) => (i === idx ? newName : m)) });
 
   const addMeal = (meal) => saveDoc("meals", { list: [...meals, meal] });
-  const deleteMeal = (idx) => saveDoc("meals", { list: meals.filter((_, i) => i !== idx) });
-  const editMeal = (idx, updatedMeal) =>
-    saveDoc("meals", { list: meals.map((m, i) => (i === idx ? updatedMeal : m)) });
+
+  // Delete Meal Handler
+  const handleDeleteMeal = (idx) => {
+    if (window.confirm("আপনি কি এই Meal ডিলিট করতে চান?")) {
+      saveDoc("meals", { list: meals.filter((_, i) => i !== idx) });
+    }
+  };
+
+  // Edit Meal Handler: modal open
+  const handleEditMeal = (idx) => {
+    setEditMealIdx(idx);
+    setEditModalOpen(true);
+  };
+
+  // Save Edit Meal (from modal)
+  const saveEditMeal = (editIdx, updatedMeal) => {
+    saveDoc("meals", {
+      list: meals.map((m, i) => (i === editIdx ? updatedMeal : m)),
+    });
+    setEditModalOpen(false);
+    setEditMealIdx(null);
+  };
 
   const addExpense = (ex) => saveDoc("expenses", { list: [...expenses, ex] });
   const deleteExpense = (idx) => saveDoc("expenses", { list: expenses.filter((_, i) => i !== idx) });
@@ -231,6 +252,8 @@ function MainApp() {
               <Meal
                 members={members}
                 meals={meals}
+                onEdit={handleEditMeal}
+                onDelete={handleDeleteMeal}
               />
             } />
             <Route path="/meal-entry" element={
@@ -238,8 +261,6 @@ function MainApp() {
                 members={members}
                 meals={meals}
                 addMeal={addMeal}
-                deleteMeal={deleteMeal}
-                editMeal={editMeal}
               />
             } />
             <Route path="/expenses" element={
@@ -259,6 +280,19 @@ function MainApp() {
             } />
           </Routes>
         </div>
+
+        {/* --- Meal Edit Modal (works from any route, even /meals) --- */}
+        {editModalOpen && (
+          <MealEntry
+            members={members}
+            meals={meals}
+            editIdx={editMealIdx}
+            meal={meals[editMealIdx]}
+            saveEditMeal={saveEditMeal}
+            setEditModalOpen={setEditModalOpen}
+            editModalOpen={editModalOpen}
+          />
+        )}
       </div>
     </Router>
   );

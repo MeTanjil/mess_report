@@ -1,17 +1,31 @@
 import React from 'react';
 
-// তারিখ সুন্দরভাবে দেখানোর জন্য helper
+// বাংলা মাসের পূর্ণ নামের array
+const banglaMonths = [
+  'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+  'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+];
+
+// ইংরেজি সংখ্যা থেকে বাংলা সংখ্যা রূপান্তরকারী ফাংশন
+function toBanglaNumber(input) {
+  const eng = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const bng = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return input.toString().split('').map(c =>
+    eng.includes(c) ? bng[eng.indexOf(c)] : c
+  ).join('');
+}
+
+// তারিখ সুন্দরভাবে দেখানোর জন্য কাস্টম helper
 const formatDate = dateStr => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('bn-BD', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  const day = toBanglaNumber(d.getDate());
+  const month = banglaMonths[d.getMonth()];
+  const year = toBanglaNumber(d.getFullYear());
+  return `${day} ${month}, ${year}`;
 };
 
-export default function Meal({ members, meals }) {
+export default function Meal({ members, meals, onEdit, onDelete }) {
   // শুধুমাত্র যেসব তারিখে meal আছে, ফিল্টার করুন
   const filteredMeals = meals.filter(meal =>
     members.some(m =>
@@ -36,10 +50,28 @@ export default function Meal({ members, meals }) {
           </div>
         ) : (
           <div className="row g-3">
-            {sortedMeals.map(meal => (
+            {sortedMeals.map((meal, idx) => (
               <div className="col-12 col-md-6 col-lg-4" key={meal.date}>
                 <div className="border rounded-4 shadow-sm p-3 bg-white h-100">
-                  <div className="fw-bold text-primary mb-2">{formatDate(meal.date)}</div>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="fw-bold text-primary">{formatDate(meal.date)}</span>
+                    <div>
+                      <button
+                        className="btn btn-sm btn-outline-success me-1"
+                        onClick={() => onEdit && onEdit(meals.findIndex(m => m.date === meal.date))}
+                        title="Edit Meal"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => onDelete && onDelete(meals.findIndex(m => m.date === meal.date))}
+                        title="Delete Meal"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
                   <div className="table-responsive">
                     <table className="table table-bordered table-sm align-middle m-0 text-center">
                       <thead>
