@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+// Toastify import
+import { toast } from "react-toastify";
 
 export default function MealEntry({
   members = [],
@@ -82,6 +84,8 @@ export default function MealEntry({
       setEditModalOpen && setEditModalOpen(false);
     } else if (addMeal) {
       addMeal({ date, meals: mealData });
+      // === Stylish Toast for Add Mode ===
+      toast.success("✅ আপনার Meal এন্ট্রি সফলভাবে যোগ হয়েছে!");
     }
     // Reset form in add mode
     if (!isEdit) {

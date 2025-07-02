@@ -12,6 +12,10 @@ import SignInSignUp from './components/SignInSignUp';
 import { db } from "./firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 
+// ===== Toastify Import =====
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 function Navigation() {
   const location = useLocation();
   const getClass = (path) =>
@@ -27,57 +31,41 @@ function Navigation() {
   );
 }
 
-// MainApp: Auth + main logic + Firestore sync + Edit Meal Modal
 function MainApp() {
   const { user, signout } = useFirebaseAuth();
 
-  // মাস নির্বাচন (default: current month)
   const today = new Date();
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
 
-  // States (Firestore থেকে load হবে)
   const [members, setMembers] = useState(["Rahim", "Karim", "Selim"]);
   const [meals, setMeals] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [messName, setMessName] = useState("");
   const [editMessName, setEditMessName] = useState(false);
 
-  // Meal Edit Modal state
   const [editMealIdx, setEditMealIdx] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Firestore path utility: users/{email}/months/{selectedMonth}-{key}
   const getDocRef = (key) => {
     if (!user) return null;
     return doc(db, "users", user.email, "months", selectedMonth + "-" + key);
   };
 
-  // Firestore Data Load (realtime listen)
   useEffect(() => {
     if (!user) return;
-
-    // Members
     const unsubMembers = onSnapshot(getDocRef("members"), (snap) => {
       setMembers(snap.exists() ? snap.data().list : ["Rahim", "Karim", "Selim"]);
     });
-
-    // Meals
     const unsubMeals = onSnapshot(getDocRef("meals"), (snap) => {
       setMeals(snap.exists() ? snap.data().list : []);
     });
-
-    // Expenses
     const unsubExpenses = onSnapshot(getDocRef("expenses"), (snap) => {
       setExpenses(snap.exists() ? snap.data().list : []);
     });
-
-    // Mess Name
     const unsubMessName = onSnapshot(getDocRef("messName"), (snap) => {
       setMessName(snap.exists() ? snap.data().value : "Mess Hishab");
     });
-
-    // Clean up
     return () => {
       unsubMembers();
       unsubMeals();
@@ -86,13 +74,11 @@ function MainApp() {
     };
   }, [user, selectedMonth]);
 
-  // Firestore Save helpers
   const saveDoc = async (key, val) => {
     if (!user) return;
     await setDoc(getDocRef(key), val, { merge: true });
   };
 
-  // ==== CRUD functions ====
   const addMember = (name) => saveDoc("members", { list: [...members, name] });
   const deleteMember = (idx) => saveDoc("members", { list: members.filter((_, i) => i !== idx) });
   const editMember = (idx, newName) =>
@@ -100,20 +86,17 @@ function MainApp() {
 
   const addMeal = (meal) => saveDoc("meals", { list: [...meals, meal] });
 
-  // Delete Meal Handler
   const handleDeleteMeal = (idx) => {
     if (window.confirm("আপনি কি এই Meal ডিলিট করতে চান?")) {
       saveDoc("meals", { list: meals.filter((_, i) => i !== idx) });
     }
   };
 
-  // Edit Meal Handler: modal open
   const handleEditMeal = (idx) => {
     setEditMealIdx(idx);
     setEditModalOpen(true);
   };
 
-  // Save Edit Meal (from modal)
   const saveEditMeal = (editIdx, updatedMeal) => {
     saveDoc("meals", {
       list: meals.map((m, i) => (i === editIdx ? updatedMeal : m)),
@@ -127,13 +110,11 @@ function MainApp() {
   const editExpense = (idx, updatedEx) =>
     saveDoc("expenses", { list: expenses.map((e, i) => (i === idx ? updatedEx : e)) });
 
-  // Mess Name
   const handleMessNameSave = () => {
     saveDoc("messName", { value: messName });
     setEditMessName(false);
   };
 
-  // Export/Import (backup)
   const handleExport = () => {
     const data = { members, meals, expenses };
     const json = JSON.stringify(data, null, 2);
@@ -168,10 +149,8 @@ function MainApp() {
     reader.readAsText(file);
   };
 
-  // Auth check
   if (!user) return <SignInSignUp />;
 
-  // UI
   const backupPanel = (
     <div className="d-flex justify-content-end mb-3">
       <button className="btn btn-success me-2" onClick={handleExport}>
@@ -294,11 +273,25 @@ function MainApp() {
           />
         )}
       </div>
+      {/* === Toast Container (Always at the End of Router) === */}
+      <ToastContainer
+        position="top-center"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+        className="custom-toast-center" // <== Add this
+        toastClassName="custom-toast-center-inner" // <== Add this
+      />
     </Router>
   );
 }
 
-// শুধু FirebaseAuthProvider দিয়ে wrap করুন
 export default function App() {
   return (
     <FirebaseAuthProvider>
